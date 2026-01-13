@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Motorista</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Icons components (simplified)
+        const PlusCircle = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>;
+        const TrendingUp = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+        const DollarSign = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
+        const Clock = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+        const Car = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>;
+        const Target = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+        const BarChart3 = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>;
+        const Calendar = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+        const X = () => <svg className="inline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+
+        const DriverExpenseTracker = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [earnings, setEarnings] = useState([]);
+            const [expenses, setExpenses] = useState([]);
+            const [workDays, setWorkDays] = useState([]);
+            const [goals, setGoals] = useState({ daily: 200, weekly: 1200 });
+            const [showAddModal, setShowAddModal] = useState(null);
+
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        const [earningsData, expensesData, workDaysData, goalsData] = await Promise.all([
+                            window.storage.get('earnings', true),
+                            window.storage.get('expenses', true),
+                            window.storage.get('workDays', true),
+                            window.storage.get('goals', true)
+                        ]);
+                        
+                        if (earningsData) setEarnings(JSON.parse(earningsData.value));
+                        if (expensesData) setExpenses(JSON.parse(expensesData.value));
+                        if (workDaysData) setWorkDays(JSON.parse(workDaysData.value));
+                        if (goalsData) setGoals(JSON.parse(goalsData.value));
+                    } catch (error) {
+                        console.log('Primeira vez usando o app');
+                    }
+                };
+                loadData();
+            }, []);
+
+            const saveData = async (key, data) => {
+                try {
+                    await window.storage.set(key, JSON.stringify(data), true);
+                } catch (error) {
+                    console.error('Erro ao salvar:', error);
+                }
+            };
+
+            const addEarning = (earning) => {
+                const newEarnings = [...earnings, { ...earning, id: Date.now(), date: new Date().toISOString() }];
+                setEarnings(newEarnings);
+                saveData('earnings', newEarnings);
+            };
+
+            const addExpense = (expense) => {
+                const newExpenses = [...expenses, { ...expense, id: Date.now(), date: new Date().toISOString() }];
+                setExpenses(newExpenses);
+                saveData('expenses', newExpenses);
+            };
+
+            const addWorkDay = (day) => {
+                const newWorkDays = [...workDays, { ...day, id: Date.now(), date: new Date().toISOString() }];
+                setWorkDays(newWorkDays);
+                saveData('workDays', newWorkDays);
+            };
+
+            const updateGoals = (newGoals) => {
+                setGoals(newGoals);
+                saveData('goals', newGoals);
+            };
+
+            const deleteItem = (type, id) => {
+                if (type === 'earning') {
+                    const newEarnings = earnings.filter(e => e.id !== id);
+                    setEarnings(newEarnings);
+                    saveData('earnings', newEarnings);
+                } else if (type === 'expense') {
+                    const newExpenses = expenses.filter(e => e.id !== id);
+                    setExpenses(newExpenses);
+                    saveData('expenses', newExpenses);
+                }
+            };
+
+            const today = new Date().toISOString().split('T')[0];
+            const todayEarnings = earnings.filter(e => e.date.startsWith(today)).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const todayExpenses = expenses.filter(e => e.date.startsWith(today)).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const todayProfit = todayEarnings - todayExpenses;
+
+            const getWeekStart = () => {
+                const now = new Date();
+                const day = now.getDay();
+                const diff = now.getDate() - day;
+                return new Date(now.setDate(diff)).toISOString().split('T')[0];
+            };
+
+            const weekStart = getWeekStart();
+            const weekEarnings = earnings.filter(e => e.date >= weekStart).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const weekExpenses = expenses.filter(e => e.date >= weekStart).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const weekProfit = weekEarnings - weekExpenses;
+
+            const totalEarnings = earnings.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+            const AddEarningModal = () => {
+                const [form, setForm] = useState({ amount: '', app: 'uber', rides: '1' });
+                
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold">Adicionar Ganho</h3>
+                                <button onClick={() => setShowAddModal(null)} className="text-gray-500">
+                                    <X />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={form.amount}
+                                        onChange={(e) => setForm({...form, amount: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="50.00"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Aplicativo</label>
+                                    <select
+                                        value={form.app}
+                                        onChange={(e) => setForm({...form, app: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    >
+                                        <option value="uber">Uber</option>
+                                        <option value="99">99</option>
+                                        <option value="indriver">InDriver</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Número de Corridas</label>
+                                    <input
+                                        type="number"
+                                        value={form.rides}
+                                        onChange={(e) => setForm({...form, rides: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (form.amount) {
+                                            addEarning(form);
+                                            setShowAddModal(null);
+                                        }
+                                    }}
+                                    className="w-full bg-green-500 text-white py-2 rounded font-medium hover:bg-green-600"
+                                >
+                                    Adicionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const AddExpenseModal = () => {
+                const [form, setForm] = useState({ amount: '', category: 'combustivel', description: '' });
+                
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold">Adicionar Despesa</h3>
+                                <button onClick={() => setShowAddModal(null)} className="text-gray-500">
+                                    <X />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={form.amount}
+                                        onChange={(e) => setForm({...form, amount: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="50.00"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Categoria</label>
+                                    <select
+                                        value={form.category}
+                                        onChange={(e) => setForm({...form, category: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    >
+                                        <option value="combustivel">Combustível</option>
+                                        <option value="manutencao">Manutenção</option>
+                                        <option value="alimentacao">Alimentação</option>
+                                        <option value="agua">Água</option>
+                                        <option value="estacionamento">Estacionamento</option>
+                                        <option value="pedagio">Pedágio</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Descrição (opcional)</label>
+                                    <input
+                                        type="text"
+                                        value={form.description}
+                                        onChange={(e) => setForm({...form, description: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="Abastecimento, almoço, etc"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (form.amount) {
+                                            addExpense(form);
+                                            setShowAddModal(null);
+                                        }
+                                    }}
+                                    className="w-full bg-red-500 text-white py-2 rounded font-medium hover:bg-red-600"
+                                >
+                                    Adicionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const AddWorkDayModal = () => {
+                const [form, setForm] = useState({ hours: '', km: '' });
+                
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold">Registrar Dia de Trabalho</h3>
+                                <button onClick={() => setShowAddModal(null)} className="text-gray-500">
+                                    <X />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Horas Trabalhadas</label>
+                                    <input
+                                        type="number"
+                                        step="0.5"
+                                        value={form.hours}
+                                        onChange={(e) => setForm({...form, hours: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="8"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Quilometragem Rodada</label>
+                                    <input
+                                        type="number"
+                                        value={form.km}
+                                        onChange={(e) => setForm({...form, km: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                        placeholder="150"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (form.hours) {
+                                            addWorkDay(form);
+                                            setShowAddModal(null);
+                                        }
+                                    }}
+                                    className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
+                                >
+                                    Registrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const Dashboard = () => (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-green-600 font-medium">Hoje</p>
+                                    <p className="text-2xl font-bold text-green-700">R$ {todayProfit.toFixed(2)}</p>
+                                    <p className="text-xs text-green-600 mt-1">
+                                        Ganhos: R$ {todayEarnings.toFixed(2)} | Gastos: R$ {todayExpenses.toFixed(2)}
+                                    </p>
+                                </div>
+                                <DollarSign />
+                            </div>
+                            <div className="mt-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span>Meta diária: R$ {goals.daily}</span>
+                                    <span>{((todayEarnings / goals.daily) * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="w-full bg-green-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-green-500 h-2 rounded-full"
+                                        style={{ width: `${Math.min((todayEarnings / goals.daily) * 100, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-blue-600 font-medium">Semana</p>
+                                    <p className="text-2xl font-bold text-blue-700">R$ {weekProfit.toFixed(2)}</p>
+                                    <p className="text-xs text-blue-600 mt-1">
+                                        Ganhos: R$ {weekEarnings.toFixed(2)}
+                                    </p>
+                                </div>
+                                <Calendar />
+                            </div>
+                            <div className="mt-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span>Meta semanal: R$ {goals.weekly}</span>
+                                    <span>{((weekEarnings / goals.weekly) * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="w-full bg-blue-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-blue-500 h-2 rounded-full"
+                                        style={{ width: `${Math.min((weekEarnings / goals.weekly) * 100, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-purple-600 font-medium">Total Geral</p>
+                                    <p className="text-2xl font-bold text-purple-700">R$ {(totalEarnings - totalExpenses).toFixed(2)}</p>
+                                    <p className="text-xs text-purple-600 mt-1">
+                                        Lucro líquido
+                                    </p>
+                                </div>
+                                <TrendingUp />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <button
+                            onClick={() => setShowAddModal('earning')}
+                            className="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600 flex flex-col items-center justify-center"
+                        >
+                            <PlusCircle />
+                            <span className="text-sm mt-2">Ganho</span>
+                        </button>
+                        <button
+                            onClick={() => setShowAddModal('expense')}
+                            className="bg-red-500 text-white p-4 rounded-lg hover:bg-red-600 flex flex-col items-center justify-center"
+                        >
+                            <PlusCircle />
+                            <span className="text-sm mt-2">Despesa</span>
+                        </button>
+                        <button
+                            onClick={() => setShowAddModal('workday')}
+                            className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 flex flex-col items-center justify-center"
+                        >
+                            <Clock />
+                            <span className="text-sm mt-2">Registrar</span>
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-lg border p-4">
+                        <h3 className="font-bold mb-3 flex items-center">
+                            <BarChart3 />
+                            <span className="ml-2">Últimos Lançamentos</span>
+                        </h3>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {[...earnings.slice(-5).reverse().map(e => ({...e, type: 'earning'})), 
+                                ...expenses.slice(-5).reverse().map(e => ({...e, type: 'expense'}))]
+                                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                .slice(0, 8)
+                                .map(item => (
+                                    <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <div>
+                                            <p className="font-medium text-sm">
+                                                {item.type === 'earning' ? `${item.app.toUpperCase()} (${item.rides} corridas)` : item.category}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {new Date(item.date).toLocaleDateString('pt-BR')}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`font-bold ${item.type === 'earning' ? 'text-green-600' : 'text-red-600'}`}>
+                                                {item.type === 'earning' ? '+' : '-'} R$ {parseFloat(item.amount).toFixed(2)}
+                                            </span>
+                                            <button
+                                                onClick={() => deleteItem(item.type, item.id)}
+                                                className="text-red-500 hover:text-red-700"
+                                            >
+                                                <X />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const GoalsTab = () => {
+                const [editGoals, setEditGoals] = useState(goals);
+
+                return (
+                    <div className="space-y-4">
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-4 flex items-center">
+                                <Target />
+                                <span className="ml-2">Configurar Metas</span>
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Meta Diária (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={editGoals.daily}
+                                        onChange={(e) => setEditGoals({...editGoals, daily: parseFloat(e.target.value)})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Meta Semanal (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={editGoals.weekly}
+                                        onChange={(e) => setEditGoals({...editGoals, weekly: parseFloat(e.target.value)})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => updateGoals(editGoals)}
+                                    className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
+                                >
+                                    Salvar Metas
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Estatísticas</h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                    <span className="text-sm">Total de Corridas</span>
+                                    <span className="font-bold">{earnings.reduce((sum, e) => sum + parseInt(e.rides || 0), 0)}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                    <span className="text-sm">Horas Trabalhadas (Total)</span>
+                                    <span className="font-bold">{workDays.reduce((sum, d) => sum + parseFloat(d.hours || 0), 0).toFixed(1)}h</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                    <span className="text-sm">KM Rodados (Total)</span>
+                                    <span className="font-bold">{workDays.reduce((sum, d) => sum + parseFloat(d.km || 0), 0)} km</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                    <span className="text-sm">Média por Hora</span>
+                                    <span className="font-bold">
+                                        R$ {(totalEarnings / (workDays.reduce((sum, d) => sum + parseFloat(d.hours || 0), 0) || 1)).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100 pb-20">
+                    <div className="bg-blue-600 text-white p-4 shadow-lg">
+                        <h1 className="text-2xl font-bold flex items-center">
+                            <Car />
+                            <span className="ml-2">Controle de Motorista</span>
+                        </h1>
+                        <p className="text-sm text-blue-100">Gerencie seus ganhos e despesas</p>
+                    </div>
+
+                    <div className="p-4 max-w-4xl mx-auto">
+                        {activeTab === 'dashboard' && <Dashboard />}
+                        {activeTab === 'goals' && <GoalsTab />}
+                    </div>
+
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
+                        <div className="flex justify-around max-w-4xl mx-auto">
+                            <button
+                                onClick={() => setActiveTab('dashboard')}
+                                className={`flex-1 py-4 flex flex-col items-center ${
+                                    activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <BarChart3 />
+                                <span className="text-xs mt-1">Dashboard</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('goals')}
+                                className={`flex-1 py-4 flex flex-col items-center ${
+                                    activeTab === 'goals' ? 'text-blue-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <Target />
+                                <span className="text-xs mt-1">Metas</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {showAddModal === 'earning' && <AddEarning
