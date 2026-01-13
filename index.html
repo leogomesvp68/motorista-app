@@ -59,6 +59,7 @@
             const [goals, setGoals] = useState({ daily: 200, weekly: 1200 });
             const [showAddModal, setShowAddModal] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
             // Wait for Firebase and setup listeners
             useEffect(() => {
@@ -161,7 +162,12 @@
             const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
             const AddEarningModal = () => {
-                const [form, setForm] = useState({ amount: '', app: 'uber', rides: '1' });
+                const [form, setForm] = useState({ 
+                    amount: '', 
+                    app: 'uber', 
+                    rides: '1',
+                    date: new Date().toISOString().split('T')[0]
+                });
                 
                 return (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -173,6 +179,15 @@
                                 </button>
                             </div>
                             <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Data</label>
+                                    <input
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({...form, date: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Valor (R$)</label>
                                     <input
@@ -209,7 +224,7 @@
                                 <button
                                     onClick={() => {
                                         if (form.amount) {
-                                            addEarning(form);
+                                            addEarning({...form, date: form.date + 'T12:00:00.000Z'});
                                         }
                                     }}
                                     className="w-full bg-green-500 text-white py-2 rounded font-medium hover:bg-green-600"
@@ -223,7 +238,12 @@
             };
 
             const AddExpenseModal = () => {
-                const [form, setForm] = useState({ amount: '', category: 'combustivel', description: '' });
+                const [form, setForm] = useState({ 
+                    amount: '', 
+                    category: 'combustivel', 
+                    description: '',
+                    date: new Date().toISOString().split('T')[0]
+                });
                 
                 return (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -235,6 +255,15 @@
                                 </button>
                             </div>
                             <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Data</label>
+                                    <input
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({...form, date: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Valor (R$)</label>
                                     <input
@@ -275,7 +304,7 @@
                                 <button
                                     onClick={() => {
                                         if (form.amount) {
-                                            addExpense(form);
+                                            addExpense({...form, date: form.date + 'T12:00:00.000Z'});
                                         }
                                     }}
                                     className="w-full bg-red-500 text-white py-2 rounded font-medium hover:bg-red-600"
@@ -289,7 +318,11 @@
             };
 
             const AddWorkDayModal = () => {
-                const [form, setForm] = useState({ hours: '', km: '' });
+                const [form, setForm] = useState({ 
+                    hours: '', 
+                    km: '',
+                    date: new Date().toISOString().split('T')[0]
+                });
                 
                 return (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -301,6 +334,15 @@
                                 </button>
                             </div>
                             <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Data</label>
+                                    <input
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({...form, date: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Horas Trabalhadas</label>
                                     <input
@@ -325,7 +367,7 @@
                                 <button
                                     onClick={() => {
                                         if (form.hours) {
-                                            addWorkDay(form);
+                                            addWorkDay({...form, date: form.date + 'T12:00:00.000Z'});
                                         }
                                     }}
                                     className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
@@ -338,7 +380,137 @@
                 );
             };
 
-            if (loading) {
+            const ReportsTab = () => {
+                const monthEarnings = earnings.filter(e => e.date.startsWith(reportMonth));
+                const monthExpenses = expenses.filter(e => e.date.startsWith(reportMonth));
+                const monthTotal = monthEarnings.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                const monthExpensesTotal = monthExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                const monthProfit = monthTotal - monthExpensesTotal;
+
+                // Group by app
+                const byApp = monthEarnings.reduce((acc, e) => {
+                    acc[e.app] = (acc[e.app] || 0) + parseFloat(e.amount);
+                    return acc;
+                }, {});
+
+                // Group by expense category
+                const byCategory = monthExpenses.reduce((acc, e) => {
+                    acc[e.category] = (acc[e.category] || 0) + parseFloat(e.amount);
+                    return acc;
+                }, {});
+
+                return (
+                    <div className="space-y-4">
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Selecionar Mês</h3>
+                            <input
+                                type="month"
+                                value={reportMonth}
+                                onChange={(e) => setReportMonth(e.target.value)}
+                                className="w-full border rounded px-3 py-2"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+                                <p className="text-xs text-green-600 mb-1">Ganhos</p>
+                                <p className="text-lg font-bold text-green-700">R$ {monthTotal.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
+                                <p className="text-xs text-red-600 mb-1">Despesas</p>
+                                <p className="text-lg font-bold text-red-700">R$ {monthExpensesTotal.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                                <p className="text-xs text-blue-600 mb-1">Lucro</p>
+                                <p className="text-lg font-bold text-blue-700">R$ {monthProfit.toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Ganhos por Aplicativo</h3>
+                            <div className="space-y-2">
+                                {Object.entries(byApp).map(([app, value]) => (
+                                    <div key={app} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <span className="text-sm font-medium capitalize">{app}</span>
+                                        <span className="font-bold text-green-600">R$ {value.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                                {Object.keys(byApp).length === 0 && (
+                                    <p className="text-sm text-gray-500 text-center py-4">Nenhum ganho neste mês</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Despesas por Categoria</h3>
+                            <div className="space-y-2">
+                                {Object.entries(byCategory).map(([cat, value]) => (
+                                    <div key={cat} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <span className="text-sm font-medium capitalize">{cat}</span>
+                                        <span className="font-bold text-red-600">R$ {value.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                                {Object.keys(byCategory).length === 0 && (
+                                    <p className="text-sm text-gray-500 text-center py-4">Nenhuma despesa neste mês</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const HistoryTab = () => {
+                return (
+                    <div className="space-y-4">
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Todos os Ganhos</h3>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {earnings.map(item => (
+                                    <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <div>
+                                            <p className="font-medium text-sm">{item.app.toUpperCase()} ({item.rides} corridas)</p>
+                                            <p className="text-xs text-gray-500">{new Date(item.date).toLocaleDateString('pt-BR')}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-green-600">+ R$ {parseFloat(item.amount).toFixed(2)}</span>
+                                            <button onClick={() => deleteItem('earning', item.id)} className="text-red-500 hover:text-red-700">
+                                                <X />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {earnings.length === 0 && (
+                                    <p className="text-sm text-gray-500 text-center py-4">Nenhum ganho registrado</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-bold mb-3">Todas as Despesas</h3>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {expenses.map(item => (
+                                    <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                        <div>
+                                            <p className="font-medium text-sm capitalize">{item.category}</p>
+                                            {item.description && <p className="text-xs text-gray-400">{item.description}</p>}
+                                            <p className="text-xs text-gray-500">{new Date(item.date).toLocaleDateString('pt-BR')}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-red-600">- R$ {parseFloat(item.amount).toFixed(2)}</span>
+                                            <button onClick={() => deleteItem('expense', item.id)} className="text-red-500 hover:text-red-700">
+                                                <X />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {expenses.length === 0 && (
+                                    <p className="text-sm text-gray-500 text-center py-4">Nenhuma despesa registrada</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
                 return (
                     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
                         <div className="text-center">
@@ -550,22 +722,42 @@
                     <div className="p-4 max-w-4xl mx-auto">
                         {activeTab === 'dashboard' && <Dashboard />}
                         {activeTab === 'goals' && <GoalsTab />}
+                        {activeTab === 'reports' && <ReportsTab />}
+                        {activeTab === 'history' && <HistoryTab />}
                     </div>
 
                     <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
                         <div className="flex justify-around max-w-4xl mx-auto">
                             <button
                                 onClick={() => setActiveTab('dashboard')}
-                                className={`flex-1 py-4 flex flex-col items-center ${
+                                className={`flex-1 py-3 flex flex-col items-center ${
                                     activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-400'
                                 }`}
                             >
                                 <BarChart3 />
-                                <span className="text-xs mt-1">Dashboard</span>
+                                <span className="text-xs mt-1">Início</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('reports')}
+                                className={`flex-1 py-3 flex flex-col items-center ${
+                                    activeTab === 'reports' ? 'text-blue-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <Calendar />
+                                <span className="text-xs mt-1">Relatórios</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`flex-1 py-3 flex flex-col items-center ${
+                                    activeTab === 'history' ? 'text-blue-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <Clock />
+                                <span className="text-xs mt-1">Histórico</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('goals')}
-                                className={`flex-1 py-4 flex flex-col items-center ${
+                                className={`flex-1 py-3 flex flex-col items-center ${
                                     activeTab === 'goals' ? 'text-blue-600' : 'text-gray-400'
                                 }`}
                             >
